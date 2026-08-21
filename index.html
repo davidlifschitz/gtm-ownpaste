@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OwnPaste — shorten the dump before Slack</title>
+    <meta
+      name="description"
+      content="Paste an AI dump. Get a short version you can actually send. Nothing is uploaded."
+    />
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #1c1917;
+        --muted: #57534e;
+        --line: #e7e5e4;
+        --bg: #fafaf9;
+        --card: #ffffff;
+        --accent: #0f766e;
+        --warn: #9a3412;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif;
+        background: var(--bg);
+        color: var(--ink);
+        line-height: 1.5;
+      }
+      main { max-width: 44rem; margin: 0 auto; padding: 4rem 1.5rem 5rem; }
+      h1 { font-size: 2rem; letter-spacing: -0.03em; margin: 0 0 0.75rem; }
+      h2 { font-size: 1.05rem; margin: 2rem 0 0.5rem; }
+      .kicker { color: var(--muted); font-size: 0.875rem; font-weight: 600; margin: 0 0 0.75rem; }
+      .lede { color: var(--muted); font-size: 1.125rem; max-width: 36rem; }
+      textarea {
+        width: 100%;
+        min-height: 11rem;
+        border: 1px dashed #d6d3d1;
+        border-radius: 1rem;
+        background: var(--card);
+        padding: 1rem 1.1rem;
+        font: inherit;
+        resize: vertical;
+      }
+      textarea:focus { outline: 2px solid var(--accent); border-style: solid; }
+      button {
+        appearance: none;
+        border: 0;
+        background: var(--ink);
+        color: white;
+        border-radius: 0.6rem;
+        padding: 0.6rem 1rem;
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      button.secondary { background: white; color: var(--ink); border: 1px solid var(--line); }
+      button:disabled { opacity: 0.45; cursor: not-allowed; }
+      .row { display: flex; gap: 0.5rem; flex-wrap: wrap; margin: 1rem 0; }
+      .meta { color: var(--muted); font-size: 0.875rem; }
+      .warn { color: var(--warn); font-size: 0.875rem; min-height: 1.3em; }
+      .out {
+        border: 1px solid var(--line);
+        border-radius: 1rem;
+        background: var(--card);
+        padding: 1rem 1.1rem;
+        white-space: pre-wrap;
+        min-height: 8rem;
+      }
+      .cards { display: grid; gap: 0.75rem; grid-template-columns: 1fr; margin-top: 2rem; }
+      @media (min-width: 640px) { .cards { grid-template-columns: 1fr 1fr 1fr; } }
+      .cards article {
+        border: 1px solid var(--line);
+        border-radius: 0.9rem;
+        padding: 1rem;
+        background: var(--card);
+      }
+      .cards h2 { font-size: 1rem; margin: 0 0 0.4rem; }
+      .cards p { margin: 0; color: var(--muted); font-size: 0.875rem; }
+      footer {
+        margin-top: 3rem;
+        padding-top: 1.25rem;
+        border-top: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 0.875rem;
+      }
+      a { color: inherit; }
+      .hidden { display: none; }
+      .cuts { color: var(--muted); font-size: 0.8rem; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p class="kicker">One job. This tab.</p>
+      <h1>OwnPaste</h1>
+      <p class="lede">
+        Paste the model dump. Get a shorter version you can send without shifting
+        the reading onto everyone else. Nothing is uploaded.
+      </p>
+
+      <textarea id="src" placeholder="Paste the Claude / GPT reply here…" maxlength="80000"></textarea>
+      <p class="warn" id="warn"></p>
+      <div class="row">
+        <button id="run">Shorten</button>
+        <button class="secondary" id="copy" type="button" disabled>Copy result</button>
+        <button class="secondary" id="reset" type="button">Clear</button>
+      </div>
+      <p class="meta">Cap: 80 KB. Heuristic only. Read it before you hit send.</p>
+
+      <div id="panel" class="hidden">
+        <h2>Send this</h2>
+        <p class="cuts" id="stats"></p>
+        <div class="out" id="out"></div>
+      </div>
+
+      <div class="cards">
+        <article>
+          <h2>Cuts filler</h2>
+          <p>Drops “it’s important to note”, closing offers, and the rest of the stock wrapper.</p>
+        </article>
+        <article>
+          <h2>No upload</h2>
+          <p>The text stays in this tab. There is no account and no server copy.</p>
+        </article>
+        <article>
+          <h2>Not a rewriter</h2>
+          <p>It does not invent a voice. It only deletes and lightly punctuates. You still own the send.</p>
+        </article>
+      </div>
+
+      <footer>
+        Reply to people who already said they paste Claude into Slack:
+        “Paste the dump here first. Nothing is uploaded. You get a shorter copy without the wrapper.”
+        <br /><br />
+        Ask:
+        <a href="https://news.ycombinator.com/item?id=49372025">HN — pasting Claude into Slack shifts the burden</a>
+        ·
+        <a href="https://github.com/davidlifschitz/gtm-ownpaste">source</a>
+      </footer>
+    </main>
+    <script>
+      const MAX = 80000;
+      const DROP = [
+        /^as an ai\b/i,
+        /^i('m| am) (an ai|a large language|happy to help)/i,
+        /^sure[,!]?\s/i,
+        /^absolutely[,!]?\s/i,
+        /^of course[,!]?\s/i,
+        /^great question/i,
+        /^that's a great/i,
+        /^that is a great/i,
+        /^happy to (help|dive|walk)/i,
+        /^i('d| would) be happy to/i,
+        /^let me (know|walk|break|explain)/i,
+        /^here('s| is) (a |an |the )?(comprehensive|detailed|quick)?/i,
+        /^in (today'?s|this) (rapidly |ever-)?evolving/i,
+        /^in the (ever-)?evolving/i,
+        /^(it'?s |it is )?(important|crucial|essential|vital) to (note|remember|understand|consider)/i,
+        /^that (being|said),?\s/i,
+        /^with that (said|in mind)/i,
+        /^at the end of the day/i,
+        /^in conclusion/i,
+        /^to (summarize|sum up|wrap up|recap)/i,
+        /^hope (this|that) helps/i,
+        /^i hope this (helps|helps!|is helpful)/i,
+        /^feel free to/i,
+        /^don'?t hesitate/i,
+        /^if you (have any|need anything|want me to)/i,
+        /^let me know if/i,
+        /^happy to (adjust|tweak|revise|go deeper)/i,
+        /^below (is|are) /i,
+        /^here are some (key )?(points|takeaways|insights)/i,
+      ];
+      const PHRASES = [
+        /\bit'?s important to (note|remember|understand) that\s*/gi,
+        /\bit is worth noting that\s*/gi,
+        /\bin today'?s (rapidly |fast-paced )?world,?\s*/gi,
+        /\bin the (ever-)?evolving landscape of\s*/gi,
+        /\bleverage\b/gi,
+        /\bdelve (into|deeper)\b/gi,
+        /\brobust\b/gi,
+        /\bseamless(ly)?\b/gi,
+        /\bcutting-edge\b/gi,
+        /\bgame-?changer\b/gi,
+        /\bunlock(s|ing)? (the )?(full )?potential\b/gi,
+        /\bat the end of the day,?\s*/gi,
+        /\bthat being said,?\s*/gi,
+      ];
+
+      const $ = (id) => document.getElementById(id);
+
+      function splitSentences(text) {
+        const parts = text
+          .replace(/\r\n/g, "\n")
+          .split(/\n{2,}/)
+          .map((p) => p.trim())
+          .filter(Boolean);
+        const sents = [];
+        for (const p of parts) {
+          const bits = p.split(/(?<=[.!?])\s+(?=[A-Z“"'(])/);
+          sents.push({ para: true, text: bits.map((b) => b.trim()).filter(Boolean) });
+        }
+        return sents;
+      }
+
+      function dropSentence(s) {
+        const t = s.trim();
+        if (t.length < 8) return true;
+        if (DROP.some((re) => re.test(t))) return true;
+        if (/^[-*•]\s*(key takeaway|in summary)/i.test(t)) return true;
+        const words = t.split(/\s+/).length;
+        if (words > 55 && /landscape|holistic|paradigm|synerg/i.test(t)) return true;
+        return false;
+      }
+
+      function tidy(s) {
+        let t = s;
+        for (const re of PHRASES) t = t.replace(re, "");
+        t = t.replace(/\s*—\s*/g, ", ");
+        t = t.replace(/\s*–\s*/g, ", ");
+        t = t.replace(/\s{2,}/g, " ");
+        t = t.replace(/\s+,/g, ",");
+        t = t.replace(/,+/g, ",");
+        t = t.replace(/^,\s*/, "");
+        t = t.replace(/\s+\./g, ".");
+        t = t.trim();
+        if (t) t = t[0].toUpperCase() + t.slice(1);
+        return t;
+      }
+
+      function shorten(raw) {
+        const blocks = splitSentences(raw);
+        const kept = [];
+        let dropped = 0;
+        for (const b of blocks) {
+          const lines = [];
+          for (const s of b.text) {
+            if (dropSentence(s)) {
+              dropped += 1;
+              continue;
+            }
+            const t = tidy(s);
+            if (!t || dropSentence(t)) {
+              dropped += 1;
+              continue;
+            }
+            lines.push(t);
+          }
+          if (lines.length) kept.push(lines.join(" "));
+        }
+        return { text: kept.join("\n\n"), dropped, paras: kept.length };
+      }
+
+      $("run").onclick = () => {
+        const raw = $("src").value;
+        $("warn").textContent = "";
+        if (!raw.trim()) {
+          $("warn").textContent = "Paste something first.";
+          return;
+        }
+        if (raw.length > MAX) {
+          $("warn").textContent = "Over 80 KB. Cut the dump down a bit.";
+          return;
+        }
+        const r = shorten(raw);
+        $("out").textContent = r.text || "(nothing left — write it yourself)";
+        $("stats").textContent =
+          raw.trim().split(/\s+/).length +
+          " words in · " +
+          (r.text.trim() ? r.text.trim().split(/\s+/).length : 0) +
+          " words out · " +
+          r.dropped +
+          " sentences cut";
+        $("panel").classList.remove("hidden");
+        $("copy").disabled = !r.text;
+      };
+
+      $("copy").onclick = async () => {
+        await navigator.clipboard.writeText($("out").textContent);
+        $("copy").textContent = "Copied";
+        setTimeout(() => ($("copy").textContent = "Copy result"), 1200);
+      };
+
+      $("reset").onclick = () => {
+        $("src").value = "";
+        $("panel").classList.add("hidden");
+        $("copy").disabled = true;
+        $("warn").textContent = "";
+      };
+    </script>
+  </body>
+</html>
