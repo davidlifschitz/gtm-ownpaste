@@ -217,7 +217,8 @@
         let t = s;
         for (const re of PHRASES) t = t.replace(re, "");
         t = t.replace(/\s*—\s*/g, ", ");
-        t = t.replace(/\s*–\s*/g, ", ");
+        t = t.replace(/(\S)–(\S)/g, "$1-$2");
+        t = t.replace(/\s+–\s+/g, ", ");
         t = t.replace(/\s{2,}/g, " ");
         t = t.replace(/\s+,/g, ",");
         t = t.replace(/,+/g, ",");
