@@ -230,6 +230,20 @@
       }
 
       function shorten(raw) {
+        const kept = [];
+        let dropped = 0;
+        const pieces = raw.replace(/\r\n/g, "\n").split(/(^```[^\n]*\n[\s\S]*?^```[ \t]*$)/m);
+        pieces.forEach((piece, i) => {
+          if (i % 2) { kept.push(piece.trim()); return; }
+          const r = shortenProse(piece);
+          kept.push(...r.kept);
+          dropped += r.dropped;
+        });
+        const text = kept.join("\n\n");
+        return { text, dropped, paras: kept.length };
+      }
+
+      function shortenProse(raw) {
         const blocks = splitSentences(raw);
         const kept = [];
         let dropped = 0;
@@ -249,7 +263,7 @@
           }
           if (lines.length) kept.push(lines.join(" "));
         }
-        return { text: kept.join("\n\n"), dropped, paras: kept.length };
+        return { kept, dropped };
       }
 
       $("run").onclick = () => {
