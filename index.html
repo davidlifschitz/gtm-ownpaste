@@ -176,15 +176,22 @@
         /\bit is worth noting that\s*/gi,
         /\bin today'?s (rapidly |fast-paced )?world,?\s*/gi,
         /\bin the (ever-)?evolving landscape of\s*/gi,
-        /\bleverage\b/gi,
-        /\bdelve (into|deeper)\b/gi,
-        /\brobust\b/gi,
-        /\bseamless(ly)?\b/gi,
-        /\bcutting-edge\b/gi,
-        /\bgame-?changer\b/gi,
-        /\bunlock(s|ing)? (the )?(full )?potential\b/gi,
         /\bat the end of the day,?\s*/gi,
         /\bthat being said,?\s*/gi,
+      ];
+
+      const SWAPS = [
+        [/\bleverag(e|es|ed|ing)\b/gi, (m, e) => ({ e: "use", es: "uses", ed: "used", ing: "using" })[e.toLowerCase()]],
+        [/\bdelv(e|es|ed|ing) (into|deeper into)\b/gi, (m, e) => ({ e: "look", es: "looks", ed: "looked", ing: "looking" })[e.toLowerCase()] + " into"],
+        [/\bdelve deeper\b/gi, "dig in"],
+        [/\brobust\b/gi, "solid"],
+        [/\bseamlessly\b/gi, "smoothly"],
+        [/\bseamless\b/gi, "smooth"],
+        [/\bcutting-edge\b/gi, "modern"],
+        [/\ba game-?changer\b/gi, "a big deal"],
+        [/\bgame-?changer\b/gi, "big deal"],
+        [/\bunlock(s|ed|ing)? (the )?(full )?potential of\b/gi, (m, e) => "help" + (e || "")],
+        [/\bunlock(s|ed|ing)? (the |your |their )?(full )?potential\b/gi, (m, e) => "help" + (e || "")],
       ];
 
       const $ = (id) => document.getElementById(id);
@@ -216,6 +223,7 @@
       function tidy(s) {
         let t = s;
         for (const re of PHRASES) t = t.replace(re, "");
+        for (const [re, to] of SWAPS) t = t.replace(re, to);
         t = t.replace(/\s*—\s*/g, ", ");
         t = t.replace(/(\S)–(\S)/g, "$1-$2");
         t = t.replace(/\s+–\s+/g, ", ");
