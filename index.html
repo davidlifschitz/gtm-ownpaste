@@ -86,6 +86,7 @@
       }
       a { color: inherit; }
       .hidden { display: none; }
+      .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
       .cuts { color: var(--muted); font-size: 0.8rem; }
     </style>
   </head>
@@ -98,8 +99,9 @@
         the reading onto everyone else. Nothing is uploaded.
       </p>
 
+      <label class="sr-only" for="src">Paste the AI reply</label>
       <textarea id="src" placeholder="Paste the Claude / GPT reply here…"></textarea>
-      <p class="warn" id="warn"></p>
+      <p class="warn" id="warn" role="status"></p>
       <div class="row">
         <button id="run">Shorten</button>
         <button class="secondary" id="copy" type="button" disabled>Copy result</button>
@@ -109,7 +111,7 @@
 
       <div id="panel" class="hidden">
         <h2>Send this</h2>
-        <p class="cuts" id="stats"></p>
+        <p class="cuts" id="stats" aria-live="polite"></p>
         <div class="out" id="out"></div>
       </div>
 
